@@ -1,0 +1,290 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Image → Matrix</title>
+
+<style>
+  :root{
+    --bg:#1a1b1e;--surface:#232428;--surface-hover:#2c2d32;--border:#3a3b40;--border-focus:#4a4b52;
+    --text:#e4e4e7;--text-muted:#90909a;--accent:#c46c2d;--accent-hover:#bc5612;--radius:8px;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    margin:0;padding:32px 48px;background:var(--bg);color:var(--text);line-height:1.5;font-size:14px;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  }
+  .main{width:100%;max-width:900px}
+  @media (max-width:640px){body{padding:24px}}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch}
+  @media (max-width:720px){.grid{grid-template-columns:1fr}}
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:30px;
+    box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+  .card h2{
+    margin:0 0 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--text-muted);
+  }
+  .upload-card{display:flex;flex-direction:column}
+  #drop{
+    display:flex;gap:12px;border:2px dashed var(--border);border-radius:var(--radius);padding:20px;
+    user-select:none;cursor:pointer;background:var(--bg);transition:border-color .2s,background .2s;
+    flex:1;width:100%;align-items:center;justify-content:center;
+  }
+  #drop:hover{border-color:var(--border-focus);background:var(--surface-hover)}
+  #drop.dragover{border-color:var(--accent);background:rgba(196,108,45,.12)}
+  #previewWrap{margin-top:14px}
+  #preview{
+    max-width:100%;border:1px solid var(--border);border-radius:var(--radius);
+    image-rendering:pixelated;background:var(--bg);
+  }
+  .muted{color:var(--text-muted);font-size:12px}
+  .setting{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .setting:last-of-type{margin-bottom:0}
+  .setting label{min-width:72px}
+  .slider-value{display:inline-block;min-width:24px;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:500}
+  input[type="range"]{
+    flex:1;min-width:80px;height:6px;-webkit-appearance:none;appearance:none;background:var(--border);border-radius:3px
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;transition:background .15s
+  }
+  input[type="range"]::-webkit-slider-thumb:hover{background:var(--accent-hover)}
+  input[type="range"]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);border:none;cursor:pointer}
+  input[type="number"]{
+    width:88px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text)
+  }
+  input[type="number"]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(91,141,239,.25)}
+  input[type="checkbox"]{accent-color:var(--accent);cursor:pointer}
+  .settings-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}
+  button{
+    padding:8px 14px;font-size:13px;font-weight:500;color:#fff;background:var(--accent);
+    border:none;border-radius:4px;cursor:pointer;transition:background .2s,transform .1s;
+  }
+  button:hover:not(:disabled){background:var(--accent-hover)}
+  button:active:not(:disabled){transform:scale(.98)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  pre{
+    white-space:pre;padding:16px;border:1px solid var(--border);border-radius:var(--radius);
+    min-height:120px;overflow:auto;margin:0;font-size:12px;line-height:1.5;background:var(--bg);color:#b4b4bb
+  }
+  .output-area{margin-top:20px;display:flex;gap:20px;align-items:stretch}
+  .preview-card{width:220px;flex:0 0 220px}
+  #previewWrap{margin-top:0}
+  #preview{width:100%;height:auto;max-height:220px;object-fit:contain;border:1px solid var(--border);border-radius:var(--radius);image-rendering:pixelated;background:var(--bg)}
+  .output-section{flex:1;min-width:0}
+  .output-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .output-actions{display:inline-flex;align-items:center;gap:10px}
+  @media (max-width:720px){
+    .output-area{flex-direction:column}
+    .preview-card{width:100%;flex-basis:auto}
+    #preview{max-height:260px}
+  }
+  #status{margin-left:8px;font-size:12px;color:var(--text-muted)}
+  .page-title{margin:56px 0 46px;font-size:20px;font-weight:600;color:var(--text);letter-spacing:-.02em}
+</style>
+
+<div class="main">
+  <h1 class="page-title">Image → Matrix</h1>
+
+  <div class="grid">
+    <section class="card upload-card">
+      <h2>Upload</h2>
+
+      <div id="drop" role="button" tabindex="0" aria-label="Drag and drop area">
+        <div>
+          <div><strong>Drag & drop</strong> here</div>
+          <div class="muted">or click to choose a file</div>
+        </div>
+        <input type="file" id="file" accept="image/*" hidden />
+      </div>
+
+    </section>
+
+    <section class="card">
+      <h2>Settings</h2>
+
+      <div class="setting">
+        <label for="col">Col</label>
+        <input type="range" id="col" min="1" max="20" value="9" />
+        <span class="slider-value" id="colValue">9</span>
+      </div>
+
+      <div class="setting">
+        <label for="row">Row</label>
+        <input type="range" id="row" min="1" max="20" value="9" />
+        <span class="slider-value" id="rowValue">9</span>
+      </div>
+
+      <div class="setting">
+        <label for="colors">Colors</label>
+        <input id="colors" type="number" value="4" min="2" max="8" />
+      </div>
+
+      <div class="settings-row">
+        <label><input id="invert" type="checkbox"> invert</label>
+      </div>
+
+      <p class="muted" style="margin:14px 0 0;">
+        Output updates when you change values.
+      </p>
+    </section>
+  </div>
+
+  <div class="output-area" id="outputArea" hidden>
+    <section class="card preview-card">
+      <h2>Preview</h2>
+      <div id="previewWrap" hidden>
+        <div class="muted" id="fileName"></div>
+        <img id="preview" alt="Preview" />
+      </div>
+    </section>
+
+    <section class="card output-section">
+      <div class="output-head">
+        <h2>Output</h2>
+        <div class="output-actions">
+          <button id="copy" disabled>Copy</button>
+          <span id="status"></span>
+        </div>
+      </div>
+      <pre id="out"></pre>
+    </section>
+  </div>
+</div>
+
+<canvas id="c" hidden></canvas>
+
+<script>
+const $ = (s, r=document) => r.querySelector(s);
+
+const el = {
+  drop: $("#drop"), file: $("#file"),
+  previewWrap: $("#previewWrap"), preview: $("#preview"), fileName: $("#fileName"),
+  col: $("#col"), row: $("#row"), colors: $("#colors"), invert: $("#invert"),
+  colValue: $("#colValue"), rowValue: $("#rowValue"),
+  out: $("#out"), copy: $("#copy"), status: $("#status"),
+  outputArea: $("#outputArea"),
+  canvas: $("#c")
+};
+
+const ctx = el.canvas.getContext("2d", { willReadFrequently: true });
+let img = null;
+
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const setStatus = (t="") => (el.status.textContent = t);
+
+function formatMatrix(m){
+  return "let matrix = [\n" + m.map(r => "  [" + r.join(",") + "]").join(",\n") + "\n];";
+}
+
+function quant(lum, levels, inv){
+  const q = Math.min(levels - 1, Math.floor(lum / (256 / levels)));
+  return inv ? (levels - 1 - q) : q;
+}
+
+async function loadFile(file){
+  const i = new Image();
+  i.src = URL.createObjectURL(file);
+  await i.decode();
+  return i;
+}
+
+async function setFile(file){
+  el.file.value = "";
+  setStatus();
+  img = await loadFile(file);
+
+  el.preview.src = img.src;
+  el.fileName.textContent = `File: ${file.name}`;
+  el.previewWrap.hidden = false;
+
+  render();
+}
+
+function render(){
+  const col = +el.col.value|0 || 1;
+  const row = +el.row.value|0 || 1;
+  const levels = clamp(+el.colors.value|0 || 4, 2, 8);
+  el.colors.value = levels;
+
+  el.colValue.textContent = col;
+  el.rowValue.textContent = row;
+
+  if (!img){
+    el.outputArea.hidden = true;
+    el.out.textContent = "";
+    el.copy.disabled = true;
+    return;
+  }
+  el.outputArea.hidden = false;
+
+  el.canvas.width = col; el.canvas.height = row;
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0,0,col,row);
+  ctx.drawImage(img, 0, 0, col, row);
+
+  const data = ctx.getImageData(0,0,col,row).data;
+  const inv = el.invert.checked;
+
+  const matrix = Array.from({length: row}, (_, y) =>
+    Array.from({length: col}, (_, x) => {
+      const i = (y * col + x) * 4;
+      const R = data[i], G = data[i+1], B = data[i+2];
+      const lum = Math.round(0.2126*R + 0.7152*G + 0.0722*B);
+      return quant(lum, levels, inv);
+    })
+  );
+
+  el.out.textContent = formatMatrix(matrix);
+  el.copy.disabled = false;
+}
+
+async function copy(){
+  const text = el.out.textContent.trim();
+  if (!text) return;
+
+  const done = () => { setStatus("Copied."); setTimeout(() => setStatus(), 900); };
+
+  try {
+    await navigator.clipboard.writeText(text);
+    done();
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    done();
+  }
+}
+
+// Upload interactions
+el.drop.addEventListener("click", () => el.file.click());
+el.drop.addEventListener("keydown", (e) => ((e.key==="Enter"||e.key===" ") && el.file.click()));
+
+el.file.addEventListener("change", () => el.file.files?.[0] && setFile(el.file.files[0]));
+
+["dragover","drop"].forEach(type => el.drop.addEventListener(type, e => e.preventDefault()));
+el.drop.addEventListener("dragover", () => el.drop.classList.add("dragover"));
+el.drop.addEventListener("dragleave", () => el.drop.classList.remove("dragover"));
+el.drop.addEventListener("drop", (e) => {
+  el.drop.classList.remove("dragover");
+  const f = e.dataTransfer.files?.[0];
+  if (f) setFile(f);
+});
+
+// Auto output
+[el.col, el.row, el.colors, el.invert].forEach(x => {
+  x.addEventListener("input", render);
+  x.addEventListener("change", render);
+});
+
+el.copy.addEventListener("click", copy);
+
+// initial UI sync
+render();
+</script>
